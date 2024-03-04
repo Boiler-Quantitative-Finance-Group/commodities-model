@@ -1,0 +1,73 @@
+import requests
+import pandas as pd
+import openpyxl
+
+# URL of the file to download
+url = "https://www.usda.gov/oce/commodity/wasde/wasde032024.xls"
+
+# Send a GET request to the URL
+response = requests.get(url)
+
+# Check if the request was successful (status code 200)
+if response.status_code == 200:
+    # Save the content of the response to a file
+    with open("wasde032024.xls", "wb") as f:
+        f.write(response.content)
+    print("File downloaded successfully.")
+    
+    # Read the Excel file into a pandas DataFrame
+    df = pd.read_excel("wasde032024.xls")
+    
+    # Now you can manipulate the data in the DataFrame as needed
+    # For example, you can print the first few rows of the DataFrame
+    print(df.head())
+else:
+    print("Failed to download file.")
+
+# Get the sheet "Page 9" and extract values from cells H14 and H15
+page_9 = wb["Page 9"]
+h14 = page_9["H14"].value
+h15 = page_9["H15"].value
+
+# Get the sheet "Page 12" and extract values from cells D33 and E33
+page_12 = wb["Page 12"]
+d33 = page_12["D33"].value
+e33 = page_12["E33"].value
+
+# Check conditions for green flags
+green_flags_buy = 0
+green_flags_sell = 0
+
+if h15 > h14:
+    green_flags_buy += 1
+elif h15 < h14:
+    green_flags_sell += 1
+
+if e33 > d33:
+    green_flags_buy += 1
+elif e33 < d33:
+    green_flags_sell += 1
+
+# Check if there are two green flags for buying or selling
+if green_flags_buy >= 2:
+    print("Buy a lot of corn")
+elif green_flags_sell >= 2:
+    print("Sell a lot of corn")
+else:
+    print("No sufficient green flags for buying or selling corn")
+
+#Connect to google sheet
+
+pip install gspread oauth2client
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+#Connect python to google sheet to update portfolio
+
+scope = ['https://spreadsheets.google.com/feeds',
+         'https://www.googleapis.com/auth/drive']
+
+credentials = ServiceAccountCredentials.from_json_keyfile_name('path/to/your/credentials.json', scope)
+client = gspread.authorize(credentials)
+
+sheet = client.open('SheetName').sheet1
