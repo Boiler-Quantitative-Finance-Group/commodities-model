@@ -48,19 +48,22 @@ class AlertGreenHorse(QCAlgorithm):
         self.Log("Forecast: {}".format(forecast))
         self.forecast = forecast[-forecast_periods:]
 
+    def is_bullish_forecast(self, forecast, current_price):
+        # Placeholder
+        return forecast[-1] > current_price
+
     def OnData(self, slice: Slice) -> None:
         equity_data = slice["SOYB"]
         if equity_data:
+            current_price = self.Securities["SOYB"].Price
             # If the forecast is bullish, create a bull spread
-            if self.forecast[-1] > self.Securities["SOYB"].Price:
+            if self.is_bullish_forecast(self.forecast, current_price):
                 self.Buy("SOYB", 100)
-                self.Sell("SOYB", 100, limit_price=self.Securities["SOYB"].Price + 1)
+                self.Sell("SOYB", 100, limit_price=current_price + 1)
             # If the forecast is bearish, create a bear spread
-            elif self.forecast[-1] < self.Securities["SOYB"].Price:
+            elif not self.is_bullish_forecast(self.forecast, current_price):
                 self.Sell("SOYB", 100)
-                self.Buy("SOYB", 100, limit_price=self.Securities["SOYB"].Price - 1)
+                self.Buy("SOYB", 100, limit_price=current_price - 1)
 
             # TODO: Make a trade decision
             # TODO: Execute the trade
-
-    # TODO: Helper function to analyze forecast
