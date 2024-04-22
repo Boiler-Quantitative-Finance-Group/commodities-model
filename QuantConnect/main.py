@@ -24,27 +24,43 @@ class AlertGreenHorse(QCAlgorithm):
         
         # Initialize variables for FFT
         self.fft_window_size = 256  # Window size for FFT
-        # TODO: Detrend the values for longer time frames
-        # Pretend we detrended the data
-        self.dtrend_close = deque(maxlen=self.fft_window_size)  # Store closing prices for FFT
+        # Get historical data for detrending and FFT
+        history = self.History("SOYB", self.fft_window_size, Resolution.Daily)
+        # Extract closing prices from history
+        close_prices = [float(bar["close"]) for bar in history]
+        # Detrend the closing prices
+        self.dtrend_close = np.diff(close_prices)
+        # Perform FFT
+        freq = ft.fftfreq(len(self.dtrend_close))
+        spec = np.abs(ft.fft(self.dtrend_close))
+        # Find indices of dominant frequencies
+        num_dom_freq = 5  # Adjust as needed
+        dominant_indices = np.argsort(spec)[::-1][:num_dom_freq]
+        # Log dominant frequencies
+        self.Log("Dominant frequencies indices: {}".format(dominant_indices))
+        # Make a prediction
+        # Forecasting up to 45 periods in advance
+        forecast_periods = 25
+        # Extend the spectrum for forecasting
+        extended_spec = np.concatenate((spec, np.zeros(forecast_periods)))
+        # Inverse FFT to get the forecasted data
+        forecast = np.real(ft.ifft(extended_spec))
+        self.Log("Forecast: {}".format(forecast))
+        self.forecast = forecast[-forecast_periods:]
 
     def OnData(self, slice: Slice) -> None:
         equity_data = slice["SOYB"]
         if equity_data:
-            # Append close price to deque
-            self.dtrend_close.append(equity_data.Close)
-            
-            if len(self.dtrend_close) == self.fft_window_size:
-                # Perform FFT
-                freq = ft.fftfreq(len(self.dtrend_close))
-                spec = np.abs(ft.fft(self.dtrend_close))
-                
-                # Find indices of dominant frequencies
-                num_dom_freq = 5  # Adjust as needed
-                dominant_indices = np.argsort(spec)[::-1][:num_dom_freq]
-                
-                # Log dominant frequencies
-                self.Log("Dominant frequencies indices: {}".format(dominant_indices))
+            # If the forecast is bullish, create a bull spread
+            if self.forecast[-1] > self.Securities["SOYB"].Price:
+                self.Buy("SOYB", 100)
+                self.Sell("SOYB", 100, limit_price=self.Securities["SOYB"].Price + 1)
+            # If the forecast is bearish, create a bear spread
+            elif self.forecast[-1] < self.Securities["SOYB"].Price:
+                self.Sell("SOYB", 100)
+                self.Buy("SOYB", 100, limit_price=self.Securities["SOYB"].Price - 1)
 
-                # TODO: Make a trade decision
-                # TODO: Excecute the trade
+            # TODO: Make a trade decision
+            # TODO: Execute the trade
+
+    # TODO: Helper function to analyze forecast
